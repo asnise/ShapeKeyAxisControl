@@ -1,6 +1,6 @@
 import bpy
-from .core import get_active_group, get_limit, update_shapes
-from .state import HUD_STATE
+from ..core.main import get_active_group, get_limit, update_shapes
+from ..core.state import HUD_STATE
 
 def on_property_update(self, context):
     if HUD_STATE["running"]:

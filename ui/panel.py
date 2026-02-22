@@ -1,6 +1,7 @@
 import bpy
-from .state import HUD_STATE
-from .core import get_active_group
+from ..core.state import HUD_STATE
+from ..core.main import get_active_group
+from ..interface.tracker import is_tracker_running
 
 class SHAPE_XY_UL_group_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -186,6 +187,16 @@ class SHAPE_XY_PT_panel(bpy.types.Panel):
                 p_ops.operator("shape_xy.set_preset", text="Set", icon='GREASEPENCIL')
                 p_ops.operator("shape_xy.call_preset", text="Call", icon='RESTRICT_SELECT_OFF')
                 p_ops.operator("shape_xy.keyframe_preset", text="Key", icon='KEY_HLT')
+
+            layout.separator()
+            layout.label(text="Tracker Interface:", icon='CAMERA_DATA')
+            box_trk = layout.box()
+            if hasattr(context.scene, "shape_xy_tracker_port"):
+                box_trk.prop(context.scene, "shape_xy_tracker_port")
+            if is_tracker_running():
+                box_trk.operator("shape_xy.tracker_stop", text="Stop UDP Server", icon='CANCEL')
+            else:
+                box_trk.operator("shape_xy.tracker_start", text="Start UDP Server", icon='PLAY')
         except Exception as e:
             box = layout.box()
             box.alert = True

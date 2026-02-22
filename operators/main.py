@@ -3,9 +3,9 @@ import math
 import json
 import os
 from bpy_extras.io_utils import ExportHelper, ImportHelper
-from .state import HUD_STATE
-from .core import get_active_group, get_limit, update_shapes
-from .draw import draw_hud
+from ..core.state import HUD_STATE
+from ..core.main import get_active_group, get_limit, update_shapes
+from ..ui.draw import draw_hud
 
 class SHAPE_XY_OT_edit_values(bpy.types.Operator):
     bl_idname = "shape_xy.edit_values"

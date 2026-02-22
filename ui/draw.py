@@ -3,8 +3,8 @@ import math
 import gpu
 import blf
 from gpu_extras.batch import batch_for_shader
-from .state import HUD_STATE
-from .core import get_active_group, get_limit
+from ..core.state import HUD_STATE
+from ..core.main import get_active_group, get_limit
 
 def get_shader():
     try:
