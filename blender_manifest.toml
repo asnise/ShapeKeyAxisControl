@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+id = "shapekey_axis_control"
+version = "4.0.2"
+name = "ShapeKey Axis Control"
+tagline = "Control shape keys using a 2D Axis HUD Joystick"
+maintainer = "Axnise"
+type = "add-on"
+license = [
+    "SPDX:GPL-3.0-or-later",
+]
+copyright = [
+    "2026 Axnise",
+]
+blender_version_min = "4.2.0"
+tags = ["Animation", "Rigging"]
