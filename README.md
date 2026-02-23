@@ -18,7 +18,7 @@ A Blender addon for controlling shape keys using a 2D Axis HUD Joystick. Map sha
 ## Installation
 
 ### Blender 4.2+
-1. Download the latest release from [Releases](https://github.com/asnise/ShapeKeyAxisControl/releases)
+1. Download the latest release from [Releases](https://extensions.blender.org/approval-queue/shapekey-axis-control/)
 2. In Blender: **Edit → Preferences → Add-ons → Install from Disk**
 3. Select the downloaded `.zip` file
 4. Enable **ShapeKey Axis Control** in the addon list
