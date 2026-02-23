@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.zip
+.vscode/
+.idea/
+*.blend1
+*.blend2
+.DS_Store
+Thumbs.db
