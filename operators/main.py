@@ -4,11 +4,11 @@ import json
 import os
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from ..core.state import HUD_STATE
-from ..core.main import get_active_group, get_limit, update_shapes
+from ..core.main import get_active_group, get_limit, update_transforms
 from ..ui.draw import draw_hud
 
-class SHAPE_XY_OT_edit_values(bpy.types.Operator):
-    bl_idname = "shape_xy.edit_values"
+class bone_xy_OT_edit_values(bpy.types.Operator):
+    bl_idname = "bone_xy.edit_values"
     bl_label = "Edit X and Y Values"
     bl_description = "Manually input exact X and Y coordinates for the current group's joystick"
     bl_options = {'REGISTER', 'UNDO'}
@@ -33,12 +33,12 @@ class SHAPE_XY_OT_edit_values(bpy.types.Operator):
             limit = get_limit(group)
             group.joy_x = max(-1.0, min(1.0, self.input_x / limit))
             group.joy_y = max(-1.0, min(1.0, self.input_y / limit))
-            update_shapes(obj, group, limit)
+            update_transforms(obj, group, limit)
             context.area.tag_redraw()
         return {'FINISHED'}
 
-class SHAPE_XY_OT_reset_handle(bpy.types.Operator):
-    bl_idname = "shape_xy.reset_handle"
+class bone_xy_OT_reset_handle(bpy.types.Operator):
+    bl_idname = "bone_xy.reset_handle"
     bl_label = "Reset Handle"
     bl_description = "Reset the joystick handle of the active group to center (0.0, 0.0)"
     
@@ -48,30 +48,30 @@ class SHAPE_XY_OT_reset_handle(bpy.types.Operator):
         if group:
             group.joy_x = 0.0
             group.joy_y = 0.0
-            update_shapes(obj, group, get_limit(group))
+            update_transforms(obj, group, get_limit(group))
             context.area.tag_redraw()
         return {'FINISHED'}
 
-class SHAPE_XY_OT_reset_all(bpy.types.Operator):
-    bl_idname = "shape_xy.reset_all"
+class bone_xy_OT_reset_all(bpy.types.Operator):
+    bl_idname = "bone_xy.reset_all"
     bl_label = "Reset All Handles"
     bl_description = "Reset ALL joystick handles across EVERY group and EVERY object back to center (0.0, 0.0)"
     
     def execute(self, context):
         for obj in context.scene.objects:
-            if hasattr(obj, 'shape_xy_groups'):
-                for group in obj.shape_xy_groups:
+            if hasattr(obj, 'bone_xy_groups'):
+                for group in obj.bone_xy_groups:
                     group.joy_x = 0.0
                     group.joy_y = 0.0
-                    update_shapes(obj, group, get_limit(group))
+                    update_transforms(obj, group, get_limit(group))
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
         return {'FINISHED'}
 
-class SHAPE_XY_OT_keyframe_handle(bpy.types.Operator):
-    bl_idname = "shape_xy.keyframe_handle"
+class bone_xy_OT_keyframe_handle(bpy.types.Operator):
+    bl_idname = "bone_xy.keyframe_handle"
     bl_label = "Keyframe Handle"
     bl_description = "Insert keyframes for the current group's joystick handle at the current frame"
     
@@ -85,10 +85,10 @@ class SHAPE_XY_OT_keyframe_handle(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class SHAPE_XY_OT_bake_animation(bpy.types.Operator):
-    bl_idname = "shape_xy.bake_animation"
-    bl_label = "Bake Animation to Shape Keys"
-    bl_description = "Bake the animated joystick logic into raw Shape Key keyframes for exporting (e.g. FBX/GLTF)"
+class bone_xy_OT_bake_animation(bpy.types.Operator):
+    bl_idname = "bone_xy.bake_animation"
+    bl_label = "Bake Animation to Transforms"
+    bl_description = "Bake the animated joystick logic into raw bone/object transform keyframes for exporting (e.g. FBX/GLTF)"
     bl_options = {'REGISTER', 'UNDO'}
     
     start_frame: bpy.props.IntProperty(name="Start Frame", default=1)
@@ -103,44 +103,50 @@ class SHAPE_XY_OT_bake_animation(bpy.types.Operator):
     def execute(self, context):
         obj = context.active_object
         group = get_active_group(obj)
-        if not group or not hasattr(group, 'shape_xy_list'):
+        if not group or not hasattr(group, 'bone_xy_list'):
             return {'CANCELLED'}
             
         original_frame = context.scene.frame_current
         
-        # Prepare shapekeys
-        if not obj.data or not hasattr(obj.data, 'shape_keys') or not obj.data.shape_keys:
-            self.report({'ERROR'}, "Object has no Shape Keys")
-            return {'CANCELLED'}
-            
-        shape_names = [item.shape_name for item in group.shape_xy_list if item.shape_name in obj.data.shape_keys.key_blocks]
-        if not shape_names:
-            self.report({'ERROR'}, "No valid Shape Keys mapped in this group")
-            return {'CANCELLED'}
-            
         limit = get_limit(group)
         
         count = 0
         for f in range(self.start_frame, self.end_frame + 1, self.step):
             context.scene.frame_set(f)
-            # The frame_change_post handler should auto update the shapes based on joy_x/y
-            # But just in case, we also explicitly enforce the update here
-            update_shapes(obj, group, limit)
+            update_transforms(obj, group, limit)
             
-            for name in shape_names:
-                sk = obj.data.shape_keys.key_blocks[name]
-                sk.keyframe_insert(data_path="value", frame=f)
+            targets_to_keyframe = set()
+            
+            for item in group.bone_xy_list:
+                target = None
+                if item.target_type == 'BONE' and obj.type == 'ARMATURE':
+                    if item.bone_name and item.bone_name in obj.pose.bones:
+                        target = obj.pose.bones[item.bone_name]
+                elif item.target_type == 'OBJECT':
+                    target = obj
+                    
+                if target:
+                    if item.prop_type == 'LOCATION':
+                        path = "location"
+                    elif item.prop_type == 'ROTATION':
+                        path = "rotation_euler"
+                    elif item.prop_type == 'SCALE':
+                        path = "scale"
+                    
+                    targets_to_keyframe.add((target, path))
+            
+            for t_obj, p_path in targets_to_keyframe:
+                t_obj.keyframe_insert(data_path=p_path, frame=f)
                 count += 1
                 
-        # Restore original frame
         context.scene.frame_set(original_frame)
         self.report({'INFO'}, f"Baked {count} keyframes from frame {self.start_frame} to {self.end_frame}")
         return {'FINISHED'}
 
-class SHAPE_XY_OT_export_group(bpy.types.Operator, ExportHelper):
-    bl_idname = "shape_xy.export_group"
+class bone_xy_OT_export_group(bpy.types.Operator, ExportHelper):
+    bl_idname = "bone_xy.export_group"
     bl_label = "Export Group Settings"
-    bl_description = "Export the current ShapeKey Group's mappings to a JSON file"
+    bl_description = "Export the current Bone Axis Control Group's mappings to a JSON file"
     
     filename_ext = ".json"
     filter_glob: bpy.props.StringProperty(default="*.json", options={'HIDDEN'})
@@ -148,7 +154,7 @@ class SHAPE_XY_OT_export_group(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         obj = context.active_object
         group = get_active_group(obj)
-        if not group or not hasattr(group, 'shape_xy_list'):
+        if not group or not hasattr(group, 'bone_xy_list'):
             return {'CANCELLED'}
             
         data = {
@@ -156,15 +162,18 @@ class SHAPE_XY_OT_export_group(bpy.types.Operator, ExportHelper):
             "mappings": []
         }
         
-        for item in group.shape_xy_list:
-            if item.shape_name:
-                data["mappings"].append({
-                    "name": item.shape_name,
-                    "target_x": item.target_x,
-                    "target_y": item.target_y,
-                    "radius": item.radius,
-                    "blend_mode": item.blend_mode
-                })
+        for item in group.bone_xy_list:
+            data["mappings"].append({
+                "target_type": item.target_type,
+                "bone_name": item.bone_name,
+                "prop_type": item.prop_type,
+                "axis_index": item.axis_index,
+                "max_value": item.max_value,
+                "target_x": item.target_x,
+                "target_y": item.target_y,
+                "radius": item.radius,
+                "blend_mode": item.blend_mode
+            })
                 
         with open(self.filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
@@ -172,17 +181,17 @@ class SHAPE_XY_OT_export_group(bpy.types.Operator, ExportHelper):
         self.report({'INFO'}, f"Exported {len(data['mappings'])} mappings")
         return {'FINISHED'}
 
-class SHAPE_XY_OT_import_group(bpy.types.Operator, ImportHelper):
-    bl_idname = "shape_xy.import_group"
+class bone_xy_OT_import_group(bpy.types.Operator, ImportHelper):
+    bl_idname = "bone_xy.import_group"
     bl_label = "Import Group Settings"
-    bl_description = "Import ShapeKey Group mappings from a JSON file"
+    bl_description = "Import Bone Axis Group mappings from a JSON file"
     
     filename_ext = ".json"
     filter_glob: bpy.props.StringProperty(default="*.json", options={'HIDDEN'})
     
     def execute(self, context):
         obj = context.active_object
-        if not obj or not hasattr(obj, 'shape_xy_groups'):
+        if not obj or not hasattr(obj, 'bone_xy_groups'):
             return {'CANCELLED'}
             
         try:
@@ -196,15 +205,18 @@ class SHAPE_XY_OT_import_group(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, "Invalid JSON format")
             return {'CANCELLED'}
             
-        # Create a new group for the imported data
-        group = obj.shape_xy_groups.add()
+        group = obj.bone_xy_groups.add()
         group.name = data.get("group_name", "Imported Group")
-        obj.shape_xy_group_index = len(obj.shape_xy_groups) - 1
+        obj.bone_xy_group_index = len(obj.bone_xy_groups) - 1
         
         count = 0
         for info in data["mappings"]:
-            item = group.shape_xy_list.add()
-            item.shape_name = info.get("name", "")
+            item = group.bone_xy_list.add()
+            item.target_type = info.get("target_type", 'BONE')
+            item.bone_name = info.get("bone_name", "")
+            item.prop_type = info.get("prop_type", 'LOCATION')
+            item.axis_index = info.get("axis_index", '0')
+            item.max_value = info.get("max_value", 1.0)
             item.target_x = info.get("target_x", 1.0)
             item.target_y = info.get("target_y", 0.0)
             item.radius = info.get("radius", 1.0)
@@ -214,8 +226,8 @@ class SHAPE_XY_OT_import_group(bpy.types.Operator, ImportHelper):
         self.report({'INFO'}, f"Imported new group with {count} mappings")
         return {'FINISHED'}
 
-class SHAPE_XY_OT_reset_hud(bpy.types.Operator):
-    bl_idname = "shape_xy.reset_hud"
+class bone_xy_OT_reset_hud(bpy.types.Operator):
+    bl_idname = "bone_xy.reset_hud"
     bl_label = "Reset Modal HUD"
     bl_description = "Reset the Axis UI position to default if it goes out of screen"
     
@@ -228,8 +240,8 @@ class SHAPE_XY_OT_reset_hud(bpy.types.Operator):
                     area.tag_redraw()
         return {'FINISHED'}
 
-class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
-    bl_idname = "shape_xy.ui_joystick"
+class bone_xy_OT_ui_joystick(bpy.types.Operator):
+    bl_idname = "bone_xy.ui_joystick"
     bl_label = "Toggle Axis UI"
     bl_description = "Start or Stop the interactive 2D HUD Axis Controller in the 3D Viewport"
     
@@ -266,7 +278,7 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
             HUD_STATE["last_obj_name"] = obj_name
             HUD_STATE["last_group_name"] = group_name
             if group:
-                update_shapes(obj, group, limit)
+                update_transforms(obj, group, limit)
             context.area.tag_redraw()
             
         is_in_window = (window_region.x <= event.mouse_x <= window_region.x + window_region.width and
@@ -299,9 +311,9 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
 
         if event.type == 'LEFTMOUSE':
             if event.value == 'PRESS':
-                if is_in_window and obj and obj.type == 'MESH' and group and hasattr(group, 'shape_xy_list') and context.scene.shape_xy_allow_drag:
+                if is_in_window and obj and obj.type == 'MESH' and group and hasattr(group, 'bone_xy_list') and context.scene.bone_xy_allow_drag:
                     cx, cy = x + size/2, y + size/2
-                    for idx, item in enumerate(group.shape_xy_list):
+                    for idx, item in enumerate(group.bone_xy_list):
                         px = cx + (item.target_x / limit) * (size/2)
                         py = cy + (item.target_y / limit) * (size/2)
                         if math.hypot(mx - px, my - py) < 12:
@@ -318,16 +330,16 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
                     HUD_STATE["dragging"] = True
                     return {'RUNNING_MODAL'}
                 elif in_reset:
-                    bpy.ops.shape_xy.reset_handle()
+                    bpy.ops.bone_xy.reset_handle()
                     return {'RUNNING_MODAL'}
                 elif in_edit:
-                    bpy.ops.shape_xy.edit_values('INVOKE_DEFAULT')
+                    bpy.ops.bone_xy.edit_values('INVOKE_DEFAULT')
                     return {'RUNNING_MODAL'}
-                elif in_prev_group and obj and hasattr(obj, 'shape_xy_groups') and obj.shape_xy_groups:
-                    obj.shape_xy_group_index = (obj.shape_xy_group_index - 1) % len(obj.shape_xy_groups)
+                elif in_prev_group and obj and hasattr(obj, 'bone_xy_groups') and obj.bone_xy_groups:
+                    obj.bone_xy_group_index = (obj.bone_xy_group_index - 1) % len(obj.bone_xy_groups)
                     return {'RUNNING_MODAL'}
-                elif in_next_group and obj and hasattr(obj, 'shape_xy_groups') and obj.shape_xy_groups:
-                    obj.shape_xy_group_index = (obj.shape_xy_group_index + 1) % len(obj.shape_xy_groups)
+                elif in_next_group and obj and hasattr(obj, 'bone_xy_groups') and obj.bone_xy_groups:
+                    obj.bone_xy_group_index = (obj.bone_xy_group_index + 1) % len(obj.bone_xy_groups)
                     return {'RUNNING_MODAL'}
 
         # I-key shortcut: insert keyframe for joy handle while hovering over HUD
@@ -335,7 +347,7 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
             if is_in_window and group:
                 hud_bound = (x - 4 <= mx <= x + size + 4) and (y - 112 <= my <= y + size + 25)
                 if hud_bound:
-                    bpy.ops.shape_xy.keyframe_handle()
+                    bpy.ops.bone_xy.keyframe_handle()
                     return {'RUNNING_MODAL'}
 
         if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
@@ -347,8 +359,8 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
         if event.type == 'MOUSEMOVE':
             if HUD_STATE.get("dragging_target_idx", -1) >= 0:
                 idx = HUD_STATE["dragging_target_idx"]
-                if group and 0 <= idx < len(group.shape_xy_list):
-                    item = group.shape_xy_list[idx]
+                if group and 0 <= idx < len(group.bone_xy_list):
+                    item = group.bone_xy_list[idx]
                     cx, cy = x + size/2, y + size/2
                     drag_limit = HUD_STATE.get("drag_start_limit", 1.0)
                     
@@ -375,7 +387,7 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
                 group.joy_x = max(-1.0, min(1.0, cx))
                 group.joy_y = max(-1.0, min(1.0, cy))
                 
-                update_shapes(obj, group, limit)
+                update_transforms(obj, group, limit)
                 
                 if context.scene.tool_settings.use_keyframe_insert_auto:
                     group.keyframe_insert(data_path="joy_x")
@@ -409,8 +421,8 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
             bpy.types.SpaceView3D.draw_handler_remove(HUD_STATE["handle"], 'WINDOW')
             HUD_STATE["handle"] = None
 
-class SHAPE_XY_OT_move_item(bpy.types.Operator):
-    bl_idname = "shape_xy.move_item"
+class bone_xy_OT_move_item(bpy.types.Operator):
+    bl_idname = "bone_xy.move_item"
     bl_label = "Move Mapping"
     bl_description = "Move the selected ShapeKey mapping up or down in the list"
     
@@ -419,28 +431,29 @@ class SHAPE_XY_OT_move_item(bpy.types.Operator):
     def execute(self, context):
         obj = context.active_object
         group = get_active_group(obj)
-        if group and hasattr(group, 'shape_xy_list'):
-            idx = group.shape_xy_index
+        if group and hasattr(group, 'bone_xy_list'):
+            idx = group.bone_xy_index
             new_idx = idx + (-1 if self.direction == 'UP' else 1)
-            if 0 <= new_idx < len(group.shape_xy_list):
-                group.shape_xy_list.move(idx, new_idx)
-                group.shape_xy_index = new_idx
+            if 0 <= new_idx < len(group.bone_xy_list):
+                group.bone_xy_list.move(idx, new_idx)
+                group.bone_xy_index = new_idx
         return {'FINISHED'}
 
-class SHAPE_XY_OT_mirror_mappings(bpy.types.Operator):
-    bl_idname = "shape_xy.mirror_mappings"
+class bone_xy_OT_mirror_mappings(bpy.types.Operator):
+    bl_idname = "bone_xy.mirror_mappings"
     bl_label = "Mirror Mappings"
-    bl_description = "Automatically generate symmetrical ShapeKey mappings for .L / .R suffixes"
+    bl_description = "Automatically generate symmetrical mappings for .L / .R suffixes"
     
     def execute(self, context):
         obj = context.active_object
         group = get_active_group(obj)
-        if not group or not hasattr(group, 'shape_xy_list'):
+        if not group or not hasattr(group, 'bone_xy_list'):
             return {'CANCELLED'}
             
         new_items = []
-        for item in group.shape_xy_list:
-            name = item.shape_name
+        for item in group.bone_xy_list:
+            if item.target_type != 'BONE': continue
+            name = item.bone_name
             if not name:
                 continue
                 
@@ -452,37 +465,41 @@ class SHAPE_XY_OT_mirror_mappings(bpy.types.Operator):
             elif name.endswith(' L'): mirrored_name = name[:-2] + ' R'
             elif name.endswith(' R'): mirrored_name = name[:-2] + ' L'
             
-            # Check if this mirrored shapekey actually exists on the mesh
-            if mirrored_name and obj.data and hasattr(obj.data, 'shape_keys') and obj.data.shape_keys:
-                if mirrored_name in obj.data.shape_keys.key_blocks:
-                    # Check if it's already mapped in this group
-                    already_exists = any(mapped.shape_name == mirrored_name for mapped in group.shape_xy_list)
-                    if not already_exists:
-                        # Prepare mapping info, flipping the target_x across the Y axis
-                        new_items.append({
-                            'name': mirrored_name,
-                            'target_x': -item.target_x,
-                            'target_y': item.target_y,
-                            'radius': item.radius,
-                            'blend_mode': item.blend_mode
-                        })
+            if mirrored_name and obj.type == 'ARMATURE' and mirrored_name in obj.data.bones:
+                already_exists = any(mapped.bone_name == mirrored_name for mapped in group.bone_xy_list)
+                if not already_exists:
+                    new_items.append({
+                        'target_type': item.target_type,
+                        'bone_name': mirrored_name,
+                        'prop_type': item.prop_type,
+                        'axis_index': item.axis_index,
+                        'max_value': item.max_value,
+                        'target_x': -item.target_x,
+                        'target_y': item.target_y,
+                        'radius': item.radius,
+                        'blend_mode': item.blend_mode
+                    })
                         
         count = 0
         for info in new_items:
-            new_item = group.shape_xy_list.add()
-            new_item.shape_name = info['name']
+            new_item = group.bone_xy_list.add()
+            new_item.target_type = info['target_type']
+            new_item.bone_name = info['bone_name']
+            new_item.prop_type = info['prop_type']
+            new_item.axis_index = info['axis_index']
+            new_item.max_value = info['max_value']
             new_item.target_x = info['target_x']
             new_item.target_y = info['target_y']
             new_item.radius = info['radius']
             new_item.blend_mode = info['blend_mode']
             count += 1
             
-        group.shape_xy_index = len(group.shape_xy_list) - 1
-        self.report({'INFO'}, f"Auto-Mirrored {count} ShapeKeys")
+        group.bone_xy_index = len(group.bone_xy_list) - 1
+        self.report({'INFO'}, f"Auto-Mirrored {count} Bones")
         return {'FINISHED'}
 
-class SHAPE_XY_OT_move_group(bpy.types.Operator):
-    bl_idname = "shape_xy.move_group"
+class bone_xy_OT_move_group(bpy.types.Operator):
+    bl_idname = "bone_xy.move_group"
     bl_label = "Move Group"
     bl_description = "Move the selected ShapeKey Group up or down in the list"
     
@@ -490,71 +507,71 @@ class SHAPE_XY_OT_move_group(bpy.types.Operator):
     
     def execute(self, context):
         obj = context.active_object
-        if obj and hasattr(obj, 'shape_xy_groups'):
-            idx = obj.shape_xy_group_index
+        if obj and hasattr(obj, 'bone_xy_groups'):
+            idx = obj.bone_xy_group_index
             new_idx = idx + (-1 if self.direction == 'UP' else 1)
-            if 0 <= new_idx < len(obj.shape_xy_groups):
-                obj.shape_xy_groups.move(idx, new_idx)
-                obj.shape_xy_group_index = new_idx
+            if 0 <= new_idx < len(obj.bone_xy_groups):
+                obj.bone_xy_groups.move(idx, new_idx)
+                obj.bone_xy_group_index = new_idx
         return {'FINISHED'}
 
-class SHAPE_XY_OT_move_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.move_preset"
+class bone_xy_OT_move_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.move_preset"
     bl_label = "Move Preset"
     bl_description = "Move the selected Global Animation Preset up or down in the list"
     
     direction: bpy.props.EnumProperty(items=(('UP', 'Up', ''), ('DOWN', 'Down', '')))
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
-        idx = context.scene.shape_xy_preset_index
+        presets = context.scene.bone_xy_presets
+        idx = context.scene.bone_xy_preset_index
         new_idx = idx + (-1 if self.direction == 'UP' else 1)
         if 0 <= new_idx < len(presets):
             presets.move(idx, new_idx)
-            context.scene.shape_xy_preset_index = new_idx
+            context.scene.bone_xy_preset_index = new_idx
         return {'FINISHED'}
 
-class SHAPE_XY_OT_add_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.add_preset"
+class bone_xy_OT_add_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.add_preset"
     bl_label = "Add Global Preset"
     bl_description = "Create a new Global Animation Preset"
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
+        presets = context.scene.bone_xy_presets
         preset = presets.add()
         preset.name = f"Preset {len(presets)}"
-        context.scene.shape_xy_preset_index = len(presets) - 1
+        context.scene.bone_xy_preset_index = len(presets) - 1
         return {'FINISHED'}
 
-class SHAPE_XY_OT_remove_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.remove_preset"
+class bone_xy_OT_remove_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.remove_preset"
     bl_label = "Remove Global Preset"
     bl_description = "Delete the currently selected Global Animation Preset"
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
-        idx = context.scene.shape_xy_preset_index
+        presets = context.scene.bone_xy_presets
+        idx = context.scene.bone_xy_preset_index
         if presets:
             presets.remove(idx)
             if len(presets) > 0:
-                context.scene.shape_xy_preset_index = min(max(0, idx - 1), len(presets) - 1)
+                context.scene.bone_xy_preset_index = min(max(0, idx - 1), len(presets) - 1)
         return {'FINISHED'}
 
-class SHAPE_XY_OT_set_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.set_preset"
+class bone_xy_OT_set_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.set_preset"
     bl_label = "Set Global Preset"
     bl_description = "Snapshot current joystick coordinates of ALL groups across ALL objects into this preset"
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
-        idx = context.scene.shape_xy_preset_index
+        presets = context.scene.bone_xy_presets
+        idx = context.scene.bone_xy_preset_index
         if 0 <= idx < len(presets):
             preset = presets[idx]
             preset.states.clear()
             
             for obj in context.scene.objects:
-                if hasattr(obj, 'shape_xy_groups'):
-                    for group in obj.shape_xy_groups:
+                if hasattr(obj, 'bone_xy_groups'):
+                    for group in obj.bone_xy_groups:
                         state = preset.states.add()
                         state.obj_name = obj.name
                         state.group_name = group.name
@@ -562,25 +579,25 @@ class SHAPE_XY_OT_set_preset(bpy.types.Operator):
                         state.joy_y = group.joy_y
         return {'FINISHED'}
 
-class SHAPE_XY_OT_call_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.call_preset"
+class bone_xy_OT_call_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.call_preset"
     bl_label = "Call Global Preset"
     bl_description = "Apply the saved joystick coordinates from this preset to ALL groups across ALL objects"
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
-        idx = context.scene.shape_xy_preset_index
+        presets = context.scene.bone_xy_presets
+        idx = context.scene.bone_xy_preset_index
         if 0 <= idx < len(presets):
             preset = presets[idx]
             
             for state in preset.states:
                 obj = context.scene.objects.get(state.obj_name)
-                if obj and hasattr(obj, 'shape_xy_groups'):
-                    group = obj.shape_xy_groups.get(state.group_name)
+                if obj and hasattr(obj, 'bone_xy_groups'):
+                    group = obj.bone_xy_groups.get(state.group_name)
                     if group:
                         group.joy_x = state.joy_x
                         group.joy_y = state.joy_y
-                        update_shapes(obj, group, get_limit(group))
+                        update_transforms(obj, group, get_limit(group))
             
             for window in context.window_manager.windows:
                 for area in window.screen.areas:
@@ -588,33 +605,47 @@ class SHAPE_XY_OT_call_preset(bpy.types.Operator):
                         area.tag_redraw()
         return {'FINISHED'}
 
-class SHAPE_XY_OT_keyframe_preset(bpy.types.Operator):
-    bl_idname = "shape_xy.keyframe_preset"
+class bone_xy_OT_keyframe_preset(bpy.types.Operator):
+    bl_idname = "bone_xy.keyframe_preset"
     bl_label = "Insert Keyframe for Global Preset"
     bl_description = "Call this preset and immediately insert keyframes for all affected shapekeys"
     
     def execute(self, context):
-        presets = context.scene.shape_xy_presets
-        idx = context.scene.shape_xy_preset_index
+        presets = context.scene.bone_xy_presets
+        idx = context.scene.bone_xy_preset_index
         if 0 <= idx < len(presets):
             preset = presets[idx]
             
             # Step 1: Call the Preset to update values
             for state in preset.states:
                 obj = context.scene.objects.get(state.obj_name)
-                if obj and hasattr(obj, 'shape_xy_groups'):
-                    group = obj.shape_xy_groups.get(state.group_name)
+                if obj and hasattr(obj, 'bone_xy_groups'):
+                    group = obj.bone_xy_groups.get(state.group_name)
                     if group:
                         group.joy_x = state.joy_x
                         group.joy_y = state.joy_y
-                        update_shapes(obj, group, get_limit(group))
+                        update_transforms(obj, group, get_limit(group))
                         
-                        # Step 2: Keyframe all affected shapekeys for this object
-                        if obj.data and hasattr(obj.data, 'shape_keys') and obj.data.shape_keys:
-                            for item in group.shape_xy_list:
-                                if item.shape_name in obj.data.shape_keys.key_blocks:
-                                    sk = obj.data.shape_keys.key_blocks[item.shape_name]
-                                    sk.keyframe_insert(data_path="value")
+                        targets_to_keyframe = set()
+                        for item in group.bone_xy_list:
+                            target = None
+                            if item.target_type == 'BONE' and obj.type == 'ARMATURE':
+                                if item.bone_name and item.bone_name in obj.pose.bones:
+                                    target = obj.pose.bones[item.bone_name]
+                            elif item.target_type == 'OBJECT':
+                                target = obj
+                                
+                            if target:
+                                if item.prop_type == 'LOCATION':
+                                    path = "location"
+                                elif item.prop_type == 'ROTATION':
+                                    path = "rotation_euler"
+                                elif item.prop_type == 'SCALE':
+                                    path = "scale"
+                                targets_to_keyframe.add((target, path))
+                                
+                        for t_obj, p_path in targets_to_keyframe:
+                            t_obj.keyframe_insert(data_path=p_path)
             
             # Refresh Viewport
             for window in context.window_manager.windows:
@@ -622,3 +653,5 @@ class SHAPE_XY_OT_keyframe_preset(bpy.types.Operator):
                     if area.type == 'VIEW_3D':
                         area.tag_redraw()
         return {'FINISHED'}
+
+

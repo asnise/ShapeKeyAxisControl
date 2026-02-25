@@ -3,7 +3,7 @@ import socket
 import threading
 import queue
 import json
-from ..core.main import update_shapes, get_limit
+from ..core.main import update_transforms, get_limit
 
 TRACKER_QUEUE = queue.Queue()
 TRACKER_THREAD = None
@@ -67,15 +67,15 @@ def process_tracker_queue():
             # Check context
             if getattr(bpy.context, "scene", None) and hasattr(bpy.context.scene, "objects"):
                 for obj in bpy.data.objects:
-                    if hasattr(obj, 'shape_xy_groups') and getattr(obj, "shape_xy_groups", None):
+                    if hasattr(obj, 'bone_xy_groups') and getattr(obj, "bone_xy_groups", None):
                         
                         # Handle GET_GROUPS request
                         if "_GET_GROUPS_REQUEST_" in latest_msg:
                             addr = latest_msg["_GET_GROUPS_REQUEST_"]
                             groups_set = set()
                             for o in bpy.data.objects:
-                                if hasattr(o, 'shape_xy_groups') and getattr(o, "shape_xy_groups", None):
-                                    for g in o.shape_xy_groups:
+                                if hasattr(o, 'bone_xy_groups') and getattr(o, "bone_xy_groups", None):
+                                    for g in o.bone_xy_groups:
                                         groups_set.add(f"{o.name}_{g.name}")
                             
                             # Send back via socket
@@ -90,23 +90,23 @@ def process_tracker_queue():
                         
                         # Handle legacy single tracking for active group
                         elif "_ACTIVE_GROUP_" in latest_msg:
-                            index = obj.shape_xy_group_index
-                            if 0 <= index < len(obj.shape_xy_groups):
-                                group = obj.shape_xy_groups[index]
+                            index = obj.bone_xy_group_index
+                            if 0 <= index < len(obj.bone_xy_groups):
+                                group = obj.bone_xy_groups[index]
                                 group.joy_x = max(-1.0, min(1.0, latest_msg["_ACTIVE_GROUP_"]["x"]))
                                 group.joy_y = max(-1.0, min(1.0, latest_msg["_ACTIVE_GROUP_"]["y"]))
                                 limit = get_limit(group)
-                                update_shapes(obj, group, limit)
+                                update_transforms(obj, group, limit)
                         
                         # Handle multi-group dictionary payload
                         else:
-                            for group in obj.shape_xy_groups:
+                            for group in obj.bone_xy_groups:
                                 group_id = f"{obj.name}_{group.name}"
                                 if group_id in latest_msg:
                                     group.joy_x = max(-1.0, min(1.0, latest_msg[group_id]["x"]))
                                     group.joy_y = max(-1.0, min(1.0, latest_msg[group_id]["y"]))
                                     limit = get_limit(group)
-                                    update_shapes(obj, group, limit)
+                                    update_transforms(obj, group, limit)
 
     return 0.05  # Run 20 times a second
 
@@ -128,18 +128,18 @@ def stop_tracker():
     global TRACKER_RUNNING
     TRACKER_RUNNING = False
 
-class SHAPE_XY_OT_tracker_start(bpy.types.Operator):
-    bl_idname = "shape_xy.tracker_start"
+class bone_xy_OT_tracker_start(bpy.types.Operator):
+    bl_idname = "bone_xy.tracker_start"
     bl_label = "Start Tracker"
     bl_description = "Start listening for external tracker input on the specified UDP port"
     
     def execute(self, context):
-        port = context.scene.shape_xy_tracker_port
+        port = context.scene.bone_xy_tracker_port
         start_tracker(port)
         return {'FINISHED'}
 
-class SHAPE_XY_OT_tracker_stop(bpy.types.Operator):
-    bl_idname = "shape_xy.tracker_stop"
+class bone_xy_OT_tracker_stop(bpy.types.Operator):
+    bl_idname = "bone_xy.tracker_stop"
     bl_label = "Stop Tracker"
     bl_description = "Stop listening for tracker input"
     
@@ -151,16 +151,18 @@ def is_tracker_running():
     return TRACKER_RUNNING
 
 def register():
-    bpy.utils.register_class(SHAPE_XY_OT_tracker_start)
-    bpy.utils.register_class(SHAPE_XY_OT_tracker_stop)
-    bpy.types.Scene.shape_xy_tracker_port = bpy.props.IntProperty(
+    bpy.utils.register_class(bone_xy_OT_tracker_start)
+    bpy.utils.register_class(bone_xy_OT_tracker_stop)
+    bpy.types.Scene.bone_xy_tracker_port = bpy.props.IntProperty(
         name="Port", default=5000, min=1024, max=65535,
         description="UDP Port to listen for tracking data"
     )
 
 def unregister():
     stop_tracker()
-    bpy.utils.unregister_class(SHAPE_XY_OT_tracker_start)
-    bpy.utils.unregister_class(SHAPE_XY_OT_tracker_stop)
-    if hasattr(bpy.types.Scene, "shape_xy_tracker_port"):
-        del bpy.types.Scene.shape_xy_tracker_port
+    bpy.utils.unregister_class(bone_xy_OT_tracker_start)
+    bpy.utils.unregister_class(bone_xy_OT_tracker_stop)
+    if hasattr(bpy.types.Scene, "bone_xy_tracker_port"):
+        del bpy.types.Scene.bone_xy_tracker_port
+
+

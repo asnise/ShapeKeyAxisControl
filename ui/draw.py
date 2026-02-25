@@ -54,7 +54,7 @@ def draw_hud():
     blf.position(0, x + 8, y + size + 7, 0)
     blf.size(0, 14)
     blf.color(0, 0.9, 0.9, 0.9, 1.0)
-    blf.draw(0, "ShapeKey Axis Control")
+    blf.draw(0, "Bone Axis Control")
 
     # Joystick Grid Background (Sunken Area)
     bg_verts = ((x, y), (x+size, y), (x+size, y+size), (x, y+size))
@@ -69,7 +69,7 @@ def draw_hud():
 
     cx, cy = x + size/2, y + size/2
     
-    if group and hasattr(group, 'shape_xy_list'):
+    if group and hasattr(group, 'bone_xy_list'):
         # Enable Scissor testing to crop drawings to the joystick bounds
         try:
             bgl_ok = True
@@ -83,7 +83,7 @@ def draw_hud():
             # Note: bgl scissor uses screen coordinates, which match viewport directly here
             bgl.glScissor(int(x), int(y), int(size), int(size))
             
-        for item in group.shape_xy_list:
+        for item in group.bone_xy_list:
             px = cx + (item.target_x / limit) * (size/2)
             py = cy + (item.target_y / limit) * (size/2)
             pr = (item.radius / limit) * (size/2)
@@ -98,11 +98,12 @@ def draw_hud():
             shader.uniform_float("color", (0.8, 0.8, 0.8, 1.0))
             p_batch.draw(shader)
             
-            if item.shape_name:
+            name_str = item.bone_name if item.target_type == 'BONE' else "Object"
+            if name_str:
                 blf.position(0, px + 5, py + 5, 0)
                 blf.size(0, 12)
                 blf.color(0, 1.0, 1.0, 1.0, 1.0)
-                blf.draw(0, item.shape_name)
+                blf.draw(0, name_str)
         
         # Disable Scissor Testing
         if bgl_ok:
@@ -209,3 +210,5 @@ def draw_hud():
         gpu.state.blend_set('NONE')
     except:
         pass
+
+
