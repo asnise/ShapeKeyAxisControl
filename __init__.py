@@ -1,10 +1,10 @@
 bl_info = {
-    "name": "ShapeKey Axis Control",
+    "name": "Bone Axis Control",
     "author": "Axnise",
     "version": (5, 0),
     "blender": (3, 0, 0),
-    "location": "View3D > Sidebar > Shape XY",
-    "description": "Control shape keys across multiple objects using a 2D Axis Controller",
+    "location": "View3D > Sidebar > Bone XY",
+    "description": "Control bone/object transforms across multiple objects using a 2D Axis Controller",
     "category": "Animation",
 }
 
@@ -29,58 +29,58 @@ else:
 import bpy
 
 classes = (
-    properties.SHAPE_XY_PG_item,
-    properties.SHAPE_XY_PG_preset_state,
-    properties.SHAPE_XY_PG_preset,
-    properties.SHAPE_XY_PG_group,
-    operators.SHAPE_XY_OT_edit_values,
-    operators.SHAPE_XY_OT_reset_handle,
-    operators.SHAPE_XY_OT_reset_all,
-    operators.SHAPE_XY_OT_keyframe_handle,
-    operators.SHAPE_XY_OT_bake_animation,
-    operators.SHAPE_XY_OT_export_group,
-    operators.SHAPE_XY_OT_import_group,
-    operators.SHAPE_XY_OT_reset_hud,
-    operators.SHAPE_XY_OT_ui_joystick,
-    operators.SHAPE_XY_OT_move_item,
-    operators.SHAPE_XY_OT_mirror_mappings,
-    operators.SHAPE_XY_OT_move_group,
-    operators.SHAPE_XY_OT_move_preset,
-    operators.SHAPE_XY_OT_add_preset,
-    operators.SHAPE_XY_OT_remove_preset,
-    operators.SHAPE_XY_OT_set_preset,
-    operators.SHAPE_XY_OT_call_preset,
-    operators.SHAPE_XY_OT_keyframe_preset,
-    ui.SHAPE_XY_UL_group_list,
-    ui.SHAPE_XY_UL_list,
-    ui.SHAPE_XY_UL_preset_list,
-    ui.SHAPE_XY_OT_add_group,
-    ui.SHAPE_XY_OT_remove_group,
-    ui.SHAPE_XY_OT_add,
-    ui.SHAPE_XY_OT_remove,
-    ui.SHAPE_XY_PT_panel,
+    properties.bone_xy_PG_item,
+    properties.bone_xy_PG_preset_state,
+    properties.bone_xy_PG_preset,
+    properties.bone_xy_PG_group,
+    operators.bone_xy_OT_edit_values,
+    operators.bone_xy_OT_reset_handle,
+    operators.bone_xy_OT_reset_all,
+    operators.bone_xy_OT_keyframe_handle,
+    operators.bone_xy_OT_bake_animation,
+    operators.bone_xy_OT_export_group,
+    operators.bone_xy_OT_import_group,
+    operators.bone_xy_OT_reset_hud,
+    operators.bone_xy_OT_ui_joystick,
+    operators.bone_xy_OT_move_item,
+    operators.bone_xy_OT_mirror_mappings,
+    operators.bone_xy_OT_move_group,
+    operators.bone_xy_OT_move_preset,
+    operators.bone_xy_OT_add_preset,
+    operators.bone_xy_OT_remove_preset,
+    operators.bone_xy_OT_set_preset,
+    operators.bone_xy_OT_call_preset,
+    operators.bone_xy_OT_keyframe_preset,
+    ui.bone_xy_UL_group_list,
+    ui.bone_xy_UL_list,
+    ui.bone_xy_UL_preset_list,
+    ui.bone_xy_OT_add_group,
+    ui.bone_xy_OT_remove_group,
+    ui.bone_xy_OT_add,
+    ui.bone_xy_OT_remove,
+    ui.bone_xy_PT_panel,
 )
 
 def register():
     tracker.register()
-    bpy.types.Scene.shape_xy_allow_drag = bpy.props.BoolProperty(name="Enable Drag Point", default=True)
+    bpy.types.Scene.bone_xy_allow_drag = bpy.props.BoolProperty(name="Enable Drag Point", default=True)
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.shape_xy_groups = bpy.props.CollectionProperty(type=properties.SHAPE_XY_PG_group)
-    bpy.types.Object.shape_xy_group_index = bpy.props.IntProperty(update=properties.on_property_update)
-    bpy.types.Scene.shape_xy_presets = bpy.props.CollectionProperty(type=properties.SHAPE_XY_PG_preset)
-    bpy.types.Scene.shape_xy_preset_index = bpy.props.IntProperty(update=properties.on_preset_change)
+    bpy.types.Object.bone_xy_groups = bpy.props.CollectionProperty(type=properties.bone_xy_PG_group)
+    bpy.types.Object.bone_xy_group_index = bpy.props.IntProperty(update=properties.on_property_update)
+    bpy.types.Scene.bone_xy_presets = bpy.props.CollectionProperty(type=properties.bone_xy_PG_preset)
+    bpy.types.Scene.bone_xy_preset_index = bpy.props.IntProperty(update=properties.on_preset_change)
     
     # Register Frame Change Handler
     bpy.app.handlers.frame_change_post.append(frame_handler)
 
 def frame_handler(scene):
     # This ensures that when the frame changes (scrubbing), 
-    # the shape keys are updated if the joy_x/y handles are animated.
+    # the bone/object transforms are updated if the joy_x/y handles are animated.
     for obj in bpy.data.objects:
-        if hasattr(obj, 'shape_xy_groups'):
-            for group in obj.shape_xy_groups:
-                core.update_shapes(obj, group, core.get_limit(group))
+        if hasattr(obj, 'bone_xy_groups'):
+            for group in obj.bone_xy_groups:
+                core.update_transforms(obj, group, core.get_limit(group))
 
 def unregister():
     tracker.unregister()
@@ -99,11 +99,13 @@ def unregister():
             
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Object.shape_xy_groups
-    del bpy.types.Object.shape_xy_group_index
-    del bpy.types.Scene.shape_xy_allow_drag
-    del bpy.types.Scene.shape_xy_presets
-    del bpy.types.Scene.shape_xy_preset_index
+    del bpy.types.Object.bone_xy_groups
+    del bpy.types.Object.bone_xy_group_index
+    del bpy.types.Scene.bone_xy_allow_drag
+    del bpy.types.Scene.bone_xy_presets
+    del bpy.types.Scene.bone_xy_preset_index
 
 if __name__ == "__main__":
     register()
+
+
