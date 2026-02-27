@@ -52,3 +52,35 @@ class SHAPE_XY_PG_group(bpy.types.PropertyGroup):
     joy_y: bpy.props.FloatProperty(default=0.0, update=on_property_update)
     shape_xy_list: bpy.props.CollectionProperty(type=SHAPE_XY_PG_item)
     shape_xy_index: bpy.props.IntProperty()
+    
+    tracker_x_mode: bpy.props.EnumProperty(
+        name="X Mode",
+        items=[('None', 'None', ''), ('2pt (Dist)', '2pt (Dist)', ''), ('1pt (Proj)', '1pt (Proj)', ''), ('iris', 'iris', '')],
+        default='2pt (Dist)'
+    )
+    tracker_x_pt_a: bpy.props.IntProperty(name="Point A", default=0, min=0, max=477)
+    tracker_x_pt_b: bpy.props.IntProperty(name="Point B", default=0, min=0, max=477)
+    tracker_x_rmin: bpy.props.FloatProperty(name="Radius Min", default=0.0)
+    tracker_x_rmax: bpy.props.FloatProperty(name="Radius Max", default=1.0)
+    tracker_x_omin: bpy.props.FloatProperty(name="Out Min", default=0.0)
+    tracker_x_omax: bpy.props.FloatProperty(name="Out Max", default=1.0)
+    tracker_x_sens: bpy.props.FloatProperty(name="Gain", default=1.0)
+    tracker_x_exp: bpy.props.FloatProperty(name="Curve Exp", default=1.2)
+    tracker_x_lerp_en: bpy.props.BoolProperty(name="Smooth", default=False)
+    tracker_x_lerp_fac: bpy.props.FloatProperty(name="Smooth Factor", default=0.15)
+    
+    tracker_y_mode: bpy.props.EnumProperty(
+        name="Y Mode",
+        items=[('None', 'None', ''), ('2pt (Dist)', '2pt (Dist)', ''), ('1pt (Proj)', '1pt (Proj)', ''), ('iris', 'iris', '')],
+        default='2pt (Dist)'
+    )
+    tracker_y_pt_a: bpy.props.IntProperty(name="Point A", default=0, min=0, max=477)
+    tracker_y_pt_b: bpy.props.IntProperty(name="Point B", default=0, min=0, max=477)
+    tracker_y_rmin: bpy.props.FloatProperty(name="Radius Min", default=0.0)
+    tracker_y_rmax: bpy.props.FloatProperty(name="Radius Max", default=1.0)
+    tracker_y_omin: bpy.props.FloatProperty(name="Out Min", default=0.0)
+    tracker_y_omax: bpy.props.FloatProperty(name="Out Max", default=1.0)
+    tracker_y_sens: bpy.props.FloatProperty(name="Gain", default=1.0)
+    tracker_y_exp: bpy.props.FloatProperty(name="Curve Exp", default=1.2)
+    tracker_y_lerp_en: bpy.props.BoolProperty(name="Smooth", default=False)
+    tracker_y_lerp_fac: bpy.props.FloatProperty(name="Smooth Factor", default=0.15)

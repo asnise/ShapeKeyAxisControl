@@ -16,7 +16,7 @@ if "bpy" in locals():
     importlib.reload(ui.draw)
     importlib.reload(operators.main)
     importlib.reload(ui.panel)
-    importlib.reload(interface.tracker)
+    importlib.reload(face_tracker)
 else:
     from .core import state
     from .core import main as core
@@ -24,7 +24,7 @@ else:
     from .ui import draw
     from .operators import main as operators
     from .ui import panel as ui
-    from .interface import tracker
+    from . import face_tracker
 
 import bpy
 
@@ -62,7 +62,7 @@ classes = (
 )
 
 def register():
-    tracker.register()
+    face_tracker.register()
     bpy.types.Scene.shape_xy_allow_drag = bpy.props.BoolProperty(name="Enable Drag Point", default=True)
     for cls in classes:
         bpy.utils.register_class(cls)
@@ -83,7 +83,7 @@ def frame_handler(scene):
                 core.update_shapes(obj, group, core.get_limit(group))
 
 def unregister():
-    tracker.unregister()
+    face_tracker.unregister()
     # Remove Frame Change Handler
     if frame_handler in bpy.app.handlers.frame_change_post:
         bpy.app.handlers.frame_change_post.remove(frame_handler)

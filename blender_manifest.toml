@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "shapekey_axis_control"
-version = "4.0.3"
+version = "4.0.4"
 name = "ShapeKey Axis Control"
 tagline = "Control shape keys using a 2D Axis HUD Joystick"
 maintainer = "Axnise"
@@ -12,7 +12,7 @@ license = [
 copyright = [
     "2026 Axnise",
 ]
-blender_version_min = "4.2.0"
+blender_version_min = "5.0.0"
 tags = ["Animation", "Rigging"]
 support = "https://github.com/asnise/ShapeKeyAxisControl/issues"
 

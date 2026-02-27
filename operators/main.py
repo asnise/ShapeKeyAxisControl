@@ -238,6 +238,9 @@ class SHAPE_XY_OT_ui_joystick(bpy.types.Operator):
             self.finish(context)
             return {'CANCELLED'}
             
+        if not context.area:
+            return {'PASS_THROUGH'}
+            
         window_region = None
         for region in context.area.regions:
             if region.type == 'WINDOW':
