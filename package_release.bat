@@ -2,7 +2,7 @@
 echo Preparing Release...
 set WORK_DIR=%TEMP%\SK_Release
 set TARGET_DIR=%WORK_DIR%\ShapeKeyAxisControl
-set OUT_ZIP=%~dp0..\ShapeKeyAxisControl_Release.zip
+set OUT_ZIP=%~dp0ShapeKeyAxisControl_Release.zip
 
 if exist "%OUT_ZIP%" del "%OUT_ZIP%"
 if exist "%WORK_DIR%" rmdir /s /q "%WORK_DIR%"
@@ -16,9 +16,10 @@ for /d /r "%TARGET_DIR%" %%d in (.git) do @if exist "%%d" rd /s /q "%%d"
 del /s /q "%TARGET_DIR%\*.bat"
 del /s /q "%TARGET_DIR%\*.zip"
 del /s /q "%TARGET_DIR%\.gitignore"
+del /s /q "%TARGET_DIR%\RELEASE_NOTES.md"
 
 echo Compressing Addon...
-powershell -Command "Compress-Archive -Path '%TARGET_DIR%' -DestinationPath '%OUT_ZIP%' -Force"
+powershell -Command "Compress-Archive -Path '%TARGET_DIR%\*' -DestinationPath '%OUT_ZIP%' -Force"
 
 echo Cleanup...
 rmdir /s /q "%WORK_DIR%"
