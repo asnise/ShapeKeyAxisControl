@@ -11,3 +11,4 @@ build/
 *.blend2
 .DS_Store
 Thumbs.db
+RELEASE_NOTES.md

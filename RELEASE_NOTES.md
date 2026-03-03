@@ -1,5 +1,11 @@
 # ShapeKey Axis Control - Release Notes
 
+## Version 4.0.42 (Animation Timeline Bug Fix)
+- **Fixed: Shape Keys Not Following Animated Handle** — Resolved a critical bug where inserting keyframes for `joy_x`/`joy_y` on the timeline caused the HUD handle to animate correctly but the shape keys themselves did not deform. Root cause was a silent failure in the `frame_change_post` handler due to two issues:
+  - **Wrong handler signature** — Blender 2.8+ passes `(scene, depsgraph)` into `frame_change_post` callbacks. The old single-argument `(scene)` signature caused Blender to silently discard the call, so `update_shapes()` was never invoked during timeline playback/scrubbing.
+  - **Missing depsgraph flush** — After writing new `sk.value` entries, a `view_layer.update()` call is now performed to force the dependency graph to propagate the changes and redraw mesh geometry. Without this, values were written in memory but the viewport mesh never reflected them.
+- **Fixed: Handler Lost on File Open** — Added `@bpy.app.handlers.persistent` decorator to `frame_handler` so it survives `.blend` file loads. Previously the handler was silently unregistered whenever a new file was opened mid-session.
+
 ## Version 4.0.41 (Blender 4.2+ Support & Installer Fixes)
 - **Blender 4.2+ Compatibility**: Restored compatibility for Blender 4.2 and above by fully migrating away from the deprecated `bgl` module in favor of pure `gpu` module calls.
 - **HUD Rendering Fixes**: Fixed an issue where the Axis UI (joystick, dots, and text) would fail to draw or crash the draw loop when groups were active due to strict shader binding rules in Blender 4.0+.

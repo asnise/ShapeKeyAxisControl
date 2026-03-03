@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "shapekey_axis_control"
-version = "4.0.41"
+version = "4.0.42"
 name = "ShapeKey Axis Control"
 tagline = "Control shape keys using a 2D Axis HUD Joystick"
 maintainer = "Axnise"

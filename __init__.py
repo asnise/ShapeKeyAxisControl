@@ -1,7 +1,7 @@
 bl_info = {
     "name": "ShapeKey Axis Control",
     "author": "Axnise",
-    "version": (5, 0),
+    "version": (4, 0, 42),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > Shape XY",
     "description": "Control shape keys across multiple objects using a 2D Axis Controller",
@@ -74,13 +74,28 @@ def register():
     # Register Frame Change Handler
     bpy.app.handlers.frame_change_post.append(frame_handler)
 
-def frame_handler(scene):
-    # This ensures that when the frame changes (scrubbing), 
+@bpy.app.handlers.persistent
+def frame_handler(scene, depsgraph=None):
+    # This ensures that when the frame changes (scrubbing),
     # the shape keys are updated if the joy_x/y handles are animated.
+    # @persistent keeps this handler alive across file loads.
+    # depsgraph parameter is required by Blender 2.8+ API; without it the
+    # handler signature mismatch causes it to fail silently.
+    needs_update = False
     for obj in bpy.data.objects:
         if hasattr(obj, 'shape_xy_groups'):
             for group in obj.shape_xy_groups:
                 core.update_shapes(obj, group, core.get_limit(group))
+                needs_update = True
+    # Force depsgraph to propagate new shape key values to the viewport.
+    # Without this, sk.value is written in memory but the mesh geometry
+    # never redraws — the handle moves but the shape stays still.
+    if needs_update:
+        try:
+            if bpy.context and bpy.context.view_layer:
+                bpy.context.view_layer.update()
+        except Exception:
+            pass
 
 def unregister():
     face_tracker.unregister()
